@@ -1,10 +1,10 @@
-import os
-import time
 import argparse
 import math
-import re
+import os
 import numpy as np
+import time
 from tqdm import tqdm
+import re
 
 import torch
 import torchvision
@@ -32,10 +32,10 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, default=1, help="how many samples are chosen in one batch")
     parser.add_argument("--lr", type=float, default=2e-4)
 
-    parser.add_argument("--ckpt_save_path", type=str, default="../ckpts", help="the path to save model ckpt")
     parser.add_argument("--results_dir", type=str, default="../results")
-    parser.add_argument('--test_save_freq', type=int, default=100, help="test save frequency")
-    parser.add_argument('--training_save_freq', type=int, default=20, help="training save frequency")
+    parser.add_argument("--ckpt_save_path", type=str, default="../results/ckpts", help="the path to save the trained models")
+    parser.add_argument('--ckpt_save_freq', type=int, default=1000, help="ckpt save frequency")
+    parser.add_argument('--visualization_freq', type=int, default=100, help="training visualization frequency")
 
     parser.add_argument('--gpu', type=int, default=0)
     parser.add_argument('--mode', type=str, choices=['train', 'test'], default='train')
@@ -190,7 +190,7 @@ def train(args):
         pred_i =  F.adaptive_avg_pool2d(pred_i, (256, 256))  # [T, 3, 256, 256]
         true_i = F.adaptive_avg_pool2d(true_i, (256, 256))
 
-        if itr % args.training_save_freq  == 0:
+        if itr % args.visualization_freq  == 0:
             save_image(torch.cat([true_i.cpu().detach(), pred_i.cpu().detach()], dim=0), 
                 os.path.join(args.results_dir, "training_{}.png".format(itr)), nrow=5, normalize=True, scale_each=True)
 
@@ -210,11 +210,11 @@ def train(args):
         time_meter.update(time.time() - end)
         loss_meter.update(loss.item())
 
-        if itr % args.test_save_freq == 0:
+        if itr % args.ckpt_save_freq == 0:
             if not os.path.exists(args.ckpt_save_path):
                 os.makedirs(args.ckpt_save_path, exist_ok=True)
             ckpt = odefunc.state_dict()
-            torch.save(ckpt, "./ckpts/iters_{}.pth".format(itr))
+            torch.save(ckpt, os.path.join(args.ckpt_save_path, "iters_{}.pth".format(itr)))
 
             single_data = dataset.get_item(10)
             start_l0 = single_data["latents"][0]
@@ -242,9 +242,15 @@ def test(args):
     # define odefunc
     odefunc = ODEfunc(args.style_dim, depth=args.depth).cuda()
 
-    ckpt = torch.load("../ckpts/dynode_ckpt.pth")
-    odefunc.load_state_dict(ckpt)
+    # use the provided odefunc
+    # ckpt_path ="../ckpts/dynode_ckpt.pth"
+    # use your trained odefunc
+    iter_num = 2000
+    ckpt_path = os.path.join(args.ckpt_save_path, "iters_{}.pth".format(iter_num))
 
+    ckpt_name = os.path.splitext(os.path.basename(ckpt_path))[0]
+    ckpt = torch.load(ckpt_path)
+    odefunc.load_state_dict(ckpt)
     print("ODEfunc: ", odefunc)
 
     # construct stylegan generator
@@ -252,14 +258,13 @@ def test(args):
 
     # construct dataset
     dataset = VideoLatentDataset(args.latent_path)
-    data_start = dataset.get_item(length=1)
-    # data_start = dataset[0]
+    # data_start = dataset.get_item(length=1)
+    data_start = dataset[0]
 
     latent_l0 = data_start["latents"][0]
     start_t0 = data_start["t_steps"][0]
     t_steps = torch.linspace(start_t0, 11, 32)
 
-    # produce interpolation results
     pred_lt = odeint(odefunc, latent_l0, t_steps) # (T, 1, 18, 512)
 
     pred_lt_flatten = pred_lt.flatten(0, 1)  # (T, 18, 512)
@@ -274,8 +279,9 @@ def test(args):
     if not os.path.exists(args.results_dir):
         os.makedirs(args.results_dir)
 
-    save_image(img_gen_list, os.path.join(args.results_dir, "interp_results.png"), nrow=8,
-        normalize=True, scale_each=True)
+    save_image(img_gen_list, 
+        os.path.join(args.results_dir, "interp_results_{}.png".format(ckpt_name)), 
+        nrow=8, normalize=True, scale_each=True)
     print("done!")
 
 if __name__ == "__main__":
