@@ -1,6 +1,10 @@
 # dynode
 
-> **GAN Inversion for Consistent Video Interpolation and Manipulation** <br>
+![visitors](https://visitor-badge.glitch.me/badge?page_id=weihaox/dynode_released&right_color=IndianRed)
+
+This repository contains the implementation of the following paper:
+
+> **Modeling the Latent Dynamics of StyleGAN using Neural ODEs** <br>
 > Weihao Xia, Yujiu Yang, Jing-Hao Xue <br>
 > arXiv preprint arXiv:2208.11197
 
@@ -16,7 +20,7 @@ Instead of developing alternative GAN architectures or inversion methods for vid
 <img src="./docs/pipeline.jpg" width=750px>
 </div>
 
-Framework of the proposed DynODE. (a) The neural ODE network ($\mathtt{ODEfunc}$, $f_{\theta}$) is trained to predict the subsequent latent states given the initial state by minimizing the losses in the latent, feature, and image spaces.
+Framework of the proposed _DynODE_. (a) The neural ODE network ($\mathtt{ODEfunc}$, $f_{\theta}$) is trained to predict the subsequent latent states given the initial state by minimizing the losses in the latent, feature, and image spaces.
 (b) The original latent space is mapped into a dynamic space. These latent codes $\{z_0, \cdots, z_n\}$ in the latent space becomes discrete-time observations $\{{z}(t_0), \cdots, {z}(t_n)\}$ of a continuous trajectory of the initial latent state in the dynamic space.
 The latent codes corresponding to different frames are reformulated as state transitions of the first frame, which can be modeled by using neural ODEs. (c) The desired video attributes could be edited by changing the first frame and extending such modifications to all subsequent frames.
 These attributes could be altered by applying a direction, either nonlinear ($d_1$) or linear ($d_2$ and $d_3$), to the initial latent code.
